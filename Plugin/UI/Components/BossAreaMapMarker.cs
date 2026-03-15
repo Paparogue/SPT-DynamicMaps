@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using DynamicMaps.Config;
 using DynamicMaps.Utils;
 using EFT;
@@ -11,10 +12,15 @@ namespace DynamicMaps.UI.Components
         private static float _checkInterval = 2f; // seconds between grid-cell checks
         private static Sprite _circleSprite;
 
-        public IPlayer Boss { get; private set; }
+        /// <summary>
+        /// All bosses represented by this marker.  A single marker may cover
+        /// more than one boss when their circles overlap on the same layer.
+        /// </summary>
+        public List<IPlayer> Bosses { get; private set; } = new();
 
-        private float _gridSize;
-        private Vector3 _lastSnappedPosition;
+        private float _baseRadius;
+        private Vector3 _lastComputedCenter;
+        private float _lastComputedRadius;
         private float _checkTimer = 0f;
 
         public BossAreaMapMarker()
@@ -32,25 +38,27 @@ namespace DynamicMaps.UI.Components
         }
 
         /// <summary>
-        /// Creates a boss area marker — a semi-transparent circle whose position is snapped to a
-        /// grid so that it only moves when the boss enters a different grid cell.
+        /// Creates a boss area marker — a semi-transparent circle whose position
+        /// is derived from one or more bosses.  When multiple bosses are present
+        /// their individual grid-snapped circles are merged into a single larger
+        /// circle that covers all of them.
         /// </summary>
-        public static BossAreaMapMarker Create(IPlayer boss, GameObject parent, Color color,
+        public static BossAreaMapMarker Create(List<IPlayer> bosses, GameObject parent, Color color,
                                                string name, float areaRadius, float degreesRotation)
         {
-            var mapPos = MathUtils.ConvertToMapPosition(boss.Position);
-            var snapped = SnapPositionToGrid(mapPos, areaRadius);
-            var diameter = areaRadius * 2f;
+            var (center, radius) = ComputeMergedCircle(bosses, areaRadius);
+            var diameter = radius * 2f;
             var pivot = new Vector2(0.5f, 0.5f);
 
             var marker = Create<BossAreaMapMarker>(
                 parent, name, "Boss Area", "",
-                color, snapped, new Vector2(diameter, diameter),
+                color, center, new Vector2(diameter, diameter),
                 pivot, degreesRotation, 1f, true, GetCircleSprite());
 
-            marker.Boss = boss;
-            marker._gridSize = areaRadius;
-            marker._lastSnappedPosition = snapped;
+            marker.Bosses = new List<IPlayer>(bosses);
+            marker._baseRadius = areaRadius;
+            marker._lastComputedCenter = center;
+            marker._lastComputedRadius = radius;
             marker.IsDynamic = true;
             marker.IsWorldScale = true;
 
@@ -59,7 +67,9 @@ namespace DynamicMaps.UI.Components
 
         private void LateUpdate()
         {
-            if (Boss?.Transform?.Original == null)
+            // Only consider bosses whose transforms are still alive
+            var valid = Bosses.Where(b => b?.Transform?.Original != null).ToList();
+            if (valid.Count == 0)
             {
                 return;
             }
@@ -72,43 +82,85 @@ namespace DynamicMaps.UI.Components
 
             _checkTimer = 0f;
 
-            var mapPos = MathUtils.ConvertToMapPosition(Boss.Position);
-            var snapped = SnapPositionToGrid(mapPos, _gridSize);
+            var (center, radius) = ComputeMergedCircle(valid, _baseRadius);
 
-            // only move the marker when the boss enters a different grid cell
-            if (!MathUtils.ApproxEquals(snapped.x, _lastSnappedPosition.x)
-             || !MathUtils.ApproxEquals(snapped.y, _lastSnappedPosition.y)
-             || !MathUtils.ApproxEquals(snapped.z, _lastSnappedPosition.z))
+            bool posChanged = !MathUtils.ApproxEquals(center.x, _lastComputedCenter.x)
+                           || !MathUtils.ApproxEquals(center.y, _lastComputedCenter.y)
+                           || !MathUtils.ApproxEquals(center.z, _lastComputedCenter.z);
+            bool sizeChanged = !MathUtils.ApproxEquals(radius, _lastComputedRadius);
+
+            if (posChanged || sizeChanged)
             {
-                _lastSnappedPosition = snapped;
-                Move(snapped);
+                _lastComputedCenter = center;
+                _lastComputedRadius = radius;
+                var diameter = radius * 2f;
+                Size = new Vector2(diameter, diameter);
+                Move(center);
             }
         }
 
         /// <summary>
-        /// Updates the visual radius when the config value changes at runtime.
+        /// Updates the base radius when the config value changes at runtime.
         /// </summary>
         public void UpdateAreaRadius(float newRadius)
         {
-            _gridSize = newRadius;
-            var diameter = newRadius * 2f;
-            Size = new Vector2(diameter, diameter);
+            _baseRadius = newRadius;
 
-            // re-snap to the new grid immediately
-            if (Boss?.Transform?.Original != null)
+            var valid = Bosses.Where(b => b?.Transform?.Original != null).ToList();
+            if (valid.Count > 0)
             {
-                var mapPos = MathUtils.ConvertToMapPosition(Boss.Position);
-                var snapped = SnapPositionToGrid(mapPos, _gridSize);
-                _lastSnappedPosition = snapped;
-                Move(snapped);
+                var (center, radius) = ComputeMergedCircle(valid, _baseRadius);
+                _lastComputedCenter = center;
+                _lastComputedRadius = radius;
+                var diameter = radius * 2f;
+                Size = new Vector2(diameter, diameter);
+                Move(center);
             }
         }
 
         // ── helpers ──────────────────────────────────────────────────────
 
         /// <summary>
+        /// Computes a single circle that covers all supplied bosses.
+        /// Each boss position is grid-snapped first; the result is a
+        /// minimum enclosing circle centred on their centroid.
+        /// </summary>
+        private static (Vector3 center, float radius) ComputeMergedCircle(
+            IEnumerable<IPlayer> bosses, float baseRadius)
+        {
+            var snapped = bosses
+                .Where(b => b?.Transform?.Original != null)
+                .Select(b => SnapPositionToGrid(
+                    MathUtils.ConvertToMapPosition(b.Position), baseRadius))
+                .ToList();
+
+            if (snapped.Count == 0)
+                return (Vector3.zero, baseRadius);
+
+            if (snapped.Count == 1)
+                return (snapped[0], baseRadius);
+
+            // Centroid of all snapped positions
+            var centroid = Vector3.zero;
+            foreach (var p in snapped) centroid += p;
+            centroid /= snapped.Count;
+
+            // Radius = furthest snapped point from centroid + base radius
+            float maxDist = 0f;
+            foreach (var p in snapped)
+            {
+                var dist = Vector2.Distance(
+                    new Vector2(p.x, p.y),
+                    new Vector2(centroid.x, centroid.y));
+                if (dist > maxDist) maxDist = dist;
+            }
+
+            return (centroid, maxDist + baseRadius);
+        }
+
+        /// <summary>
         /// Rounds <paramref name="pos"/> to the nearest grid-cell centre.
-        /// Grid cell size equals <paramref name="gridSize"/> so the boss is
+        /// Grid cell size equals <paramref name="gridSize"/> so a boss is
         /// always within one radius of the circle centre.
         /// </summary>
         private static Vector3 SnapPositionToGrid(Vector3 pos, float gridSize)

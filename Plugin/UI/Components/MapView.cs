@@ -107,12 +107,11 @@ namespace DynamicMaps.UI.Components
 
         /// <summary>
         /// Adds a boss-area circle marker that is world-scale (scales with the map, not fixed screen size).
-        /// The marker position is grid-snapped so the boss's exact location stays hidden.
+        /// When multiple bosses are supplied their individual circles are merged into one.
         /// </summary>
-        public BossAreaMapMarker AddBossAreaMarker(IPlayer boss, string category, Color color, float areaRadius)
+        public BossAreaMapMarker AddBossAreaMarker(List<IPlayer> bosses, string name, Color color, float areaRadius)
         {
-            var name = $"{boss.Profile.GetCorrectedNickname()} (area)";
-            var marker = BossAreaMapMarker.Create(boss, MapMarkerContainer, color, name,
+            var marker = BossAreaMapMarker.Create(bosses, MapMarkerContainer, color, name,
                                                   areaRadius, -CoordinateRotation);
             AddMapMarker(marker);
 
@@ -437,6 +436,16 @@ namespace DynamicMaps.UI.Components
             
             var incrementSize = smallestDimension * ZoomCurrent * incrementScale;
             ShiftMap(shiftIncrements * incrementSize, 0, isMini);
+        }
+
+        /// <summary>
+        /// Returns the layer level for a given map-space position, or null if
+        /// no layer contains that position.
+        /// </summary>
+        public int? GetLayerLevelForPosition(Vector3 position)
+        {
+            var layer = FindMatchingLayerByCoordinate(position);
+            return layer?.Level;
         }
 
         private MapLayer FindMatchingLayerByCoordinate(Vector3 coordinate)
