@@ -183,10 +183,12 @@ namespace DynamicMaps.DynamicMarkers
 
             var radius = Settings.BossAreaRadius.Value;
 
-            // Merge threshold — if the distance between two snapped centres
-            // is less than 1.5× the radius the circles overlap visually
-            // by roughly 15-25 % which is enough to hurt readability.
-            var mergeThreshold = radius * 1.5f;
+            // FIX: Merge threshold increased from 1.5× to 2.2× radius.
+            // Two circles visually touch when their centre-to-centre distance
+            // equals 2× the radius.  Using 2.2× gives a comfortable margin so
+            // circles that are touching or barely overlapping always merge into
+            // a single large circle instead of appearing as two fat circles.
+            var mergeThreshold = radius * 2.2f;
 
             var aliveBosses = _trackedBosses
                 .Where(b => b?.Transform?.Original != null && !b.HasCorpse())

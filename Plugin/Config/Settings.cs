@@ -39,7 +39,8 @@ namespace DynamicMaps.Config
         public static ConfigEntry<bool> ShowEnemyPlayerMarkersInRaid;
         public static ConfigEntry<bool> ShowScavMarkersInRaid;
         public static ConfigEntry<bool> ShowBossMarkersInRaid;
-        public static ConfigEntry<float> BossAreaRadius;  // NEW: boss area circle radius
+        public static ConfigEntry<float> BossAreaRadius;
+        public static ConfigEntry<float> BossAreaOpacity;  // NEW: boss area fill opacity
         public static ConfigEntry<bool> ShowLockedDoorStatus;
         public static ConfigEntry<bool> ShowQuestsInRaid;
         public static ConfigEntry<bool> ShowExtractsInRaid;
@@ -309,7 +310,6 @@ namespace DynamicMaps.Config
                     null,
                     new ConfigurationManagerAttributes { })));
 
-            // NEW: Boss area radius setting
             ConfigEntries.Add(BossAreaRadius = config.Bind(
                 DynamicMarkerTitle,
                 "Boss Area Radius",
@@ -318,6 +318,17 @@ namespace DynamicMaps.Config
                     "The radius (in game-units/meters) of the circle shown for a boss's approximate location. " +
                     "The circle snaps to a grid of this size so the exact position is hidden.",
                     new AcceptableValueRange<float>(10f, 200f),
+                    new ConfigurationManagerAttributes { })));
+
+            // NEW: Boss area opacity setting
+            ConfigEntries.Add(BossAreaOpacity = config.Bind(
+                DynamicMarkerTitle,
+                "Boss Area Opacity",
+                0.18f,
+                new ConfigDescription(
+                    "The fill opacity of the boss area circle (0 = fully transparent, 1 = fully opaque). " +
+                    "The border ring will always be slightly more visible than the fill.",
+                    new AcceptableValueRange<float>(0f, 1f),
                     new ConfigurationManagerAttributes { })));
 
             ConfigEntries.Add(ShowLockedDoorStatus = config.Bind(

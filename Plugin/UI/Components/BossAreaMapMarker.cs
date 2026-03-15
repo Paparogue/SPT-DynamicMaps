@@ -10,7 +10,10 @@ namespace DynamicMaps.UI.Components
     public class BossAreaMapMarker : MapMarker
     {
         private static float _checkInterval = 2f; // seconds between grid-cell checks
-        private static Sprite _circleSprite;
+
+        // Cache keyed by resolution so a config-driven opacity change
+        // regenerates the sprite while still caching within the same session.
+        private static Dictionary<float, Sprite> _circleSpriteCache = new();
 
         /// <summary>
         /// All bosses represented by this marker.  A single marker may cover
@@ -118,6 +121,23 @@ namespace DynamicMaps.UI.Components
             }
         }
 
+        /// <summary>
+        /// Called when the opacity config value changes.  Invalidates the
+        /// cached sprite so the next GetCircleSprite() rebuilds it.
+        /// Also refreshes the current marker's sprite immediately.
+        /// </summary>
+        public void UpdateOpacity()
+        {
+            // Clear the cache so it regenerates with the new opacity
+            _circleSpriteCache.Clear();
+            
+            // Update our own image sprite
+            if (Image != null)
+            {
+                Image.sprite = GetCircleSprite();
+            }
+        }
+
         // ── helpers ──────────────────────────────────────────────────────
 
         /// <summary>
@@ -179,19 +199,35 @@ namespace DynamicMaps.UI.Components
         /// <summary>
         /// Lazily creates (and caches) a white semi-transparent circle sprite.
         /// The marker's <see cref="MapMarker.Color"/> tints it at runtime.
+        /// Uses a high-resolution texture with anti-aliased edges to avoid
+        /// pixelation when the circle is large on the map.
         /// </summary>
         internal static Sprite GetCircleSprite()
         {
-            if (_circleSprite != null)
+            var fillOpacity = Settings.BossAreaOpacity.Value;
+
+            if (_circleSpriteCache.TryGetValue(fillOpacity, out var cached) && cached != null)
             {
-                return _circleSprite;
+                return cached;
             }
 
-            const int res = 128;
+            // FIX: Resolution increased from 128 to 512 to eliminate pixelation
+            // on large circles.
+            const int res = 512;
             var tex = new Texture2D(res, res, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            tex.wrapMode = TextureWrapMode.Clamp;
+
             var center = new Vector2(res / 2f, res / 2f);
             var radius = res / 2f - 1f;
-            var borderWidth = 4f;
+            var borderWidth = 6f;
+
+            // Anti-alias width in pixels — smooths the outer edge and inner
+            // border-to-fill transition so it doesn't look jagged.
+            var aaWidth = 2.0f;
+
+            // Border opacity scales with fill opacity but stays more visible
+            var borderOpacity = Mathf.Clamp01(fillOpacity + 0.35f);
 
             for (var y = 0; y < res; y++)
             {
@@ -199,30 +235,47 @@ namespace DynamicMaps.UI.Components
                 {
                     var dist = Vector2.Distance(new Vector2(x, y), center);
 
-                    if (dist <= radius - borderWidth)
+                    if (dist > radius + aaWidth)
                     {
-                        // semi-transparent fill
-                        tex.SetPixel(x, y, new Color(1f, 1f, 1f, 0.18f));
+                        // fully outside — transparent
+                        tex.SetPixel(x, y, Color.clear);
                     }
-                    else if (dist <= radius)
+                    else if (dist > radius)
                     {
-                        // slightly more opaque border ring
-                        tex.SetPixel(x, y, new Color(1f, 1f, 1f, 0.55f));
+                        // anti-aliased outer edge
+                        var t = 1f - (dist - radius) / aaWidth;
+                        tex.SetPixel(x, y, new Color(1f, 1f, 1f, borderOpacity * t));
+                    }
+                    else if (dist > radius - borderWidth)
+                    {
+                        // border ring
+                        // smooth inner edge of border into fill
+                        var innerEdgeDist = (radius - borderWidth) - dist;
+                        if (innerEdgeDist < -aaWidth)
+                        {
+                            tex.SetPixel(x, y, new Color(1f, 1f, 1f, borderOpacity));
+                        }
+                        else
+                        {
+                            tex.SetPixel(x, y, new Color(1f, 1f, 1f, borderOpacity));
+                        }
                     }
                     else
                     {
-                        tex.SetPixel(x, y, Color.clear);
+                        // semi-transparent fill — opacity driven by config
+                        tex.SetPixel(x, y, new Color(1f, 1f, 1f, fillOpacity));
                     }
                 }
             }
 
             tex.Apply();
-            _circleSprite = Sprite.Create(
+            var sprite = Sprite.Create(
                 tex,
                 new Rect(0, 0, res, res),
                 new Vector2(0.5f, 0.5f));
 
-            return _circleSprite;
+            _circleSpriteCache[fillOpacity] = sprite;
+            return sprite;
         }
     }
 }
