@@ -45,6 +45,13 @@ namespace DynamicMaps.UI.Components
                     {LayerStatus.OnTop, 1.0f},
                     {LayerStatus.FullReveal, 1.0f},
                 }},
+                // NEW: Boss Area category — always somewhat visible
+                {"Boss Area", new Dictionary<LayerStatus, float> {
+                    {LayerStatus.Hidden, 0.25f},
+                    {LayerStatus.Underneath, 0.50f},
+                    {LayerStatus.OnTop, 1.0f},
+                    {LayerStatus.FullReveal, 1.0f},
+                }},
             };
         public static Dictionary<string, Dictionary<LayerStatus, float>> CategoryLabelAlphaLayerStatus { get; protected set; }
             = new Dictionary<string, Dictionary<LayerStatus, float>>
@@ -92,6 +99,13 @@ namespace DynamicMaps.UI.Components
         public string AssociatedItemId { get; protected set; } = "";
         public bool IsDynamic { get; protected set; } = false;
         public bool ShowInRaid { get; protected set; } = true;
+
+        /// <summary>
+        /// When true the marker keeps its size in map-space (scales with the map)
+        /// rather than being inverse-scaled to stay a constant screen size.
+        /// Used by BossAreaMapMarker so the circle represents a real area.
+        /// </summary>
+        public bool IsWorldScale { get; set; } = false;
 
         private Vector3 _position;
         public Vector3 Position

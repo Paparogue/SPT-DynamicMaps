@@ -14,7 +14,8 @@ namespace DynamicMaps.DynamicMarkers
     public class OtherPlayersMarkerProvider : IDynamicMarkerProvider
     {
         private const string _arrowImagePath = "Markers/arrow.png";
-        private const string _starImagePath = "Markers/star.png";
+        // NOTE: _starImagePath and _bossCategory removed — bosses are now handled
+        //       exclusively by BossAreaMarkerProvider.
         
         private const string _friendlyPlayerCategory = "Friendly Player";
         private const string _friendlyPlayerImagePath = _arrowImagePath;
@@ -26,9 +27,6 @@ namespace DynamicMaps.DynamicMarkers
         private const string _scavCategory = "Scav";
         private const string _scavImagePath = _arrowImagePath;
 
-        private const string _bossCategory = "Boss";
-        private const string _bossImagePath = _starImagePath;
-        
         private bool _showFriendlyPlayers = true;
         public bool ShowFriendlyPlayers
         {
@@ -71,19 +69,7 @@ namespace DynamicMaps.DynamicMarkers
             }
         }
 
-        private bool _showBosses = false;
-        public bool ShowBosses
-        {
-            get
-            {
-                return _showBosses;
-            }
-
-            set
-            {
-                HandleSetBoolOption(ref _showBosses, value);
-            }
-        }
+        // NOTE: ShowBosses property removed — bosses handled by BossAreaMarkerProvider
 
         private MapView _lastMapView;
         private Dictionary<Player, PlayerMapMarker> _playerMarkers = [];
@@ -230,6 +216,12 @@ namespace DynamicMaps.DynamicMarkers
             {
                 return;
             }
+
+            // ── CHANGE: skip tracked bosses — they are handled by BossAreaMarkerProvider ──
+            if (player.IsTrackedBoss())
+            {
+                return;
+            }
             
             // set category and color
             var category = string.Empty;
@@ -244,12 +236,7 @@ namespace DynamicMaps.DynamicMarkers
                 imagePath = _friendlyPlayerImagePath;
                 color = _friendlyPlayerColor;
             }
-            else if (player.IsTrackedBoss() && Settings.ShowBossIntelLevel.Value <= intelLevel)
-            {
-                category = _bossCategory;
-                imagePath = _bossImagePath;
-                color = Settings.BossColor.Value;
-            }
+            // NOTE: boss branch removed — handled by BossAreaMarkerProvider
             else if (player.IsPMC() && Settings.ShowPmcIntelLevel.Value <= intelLevel)
             {
                 category = _enemyPlayerCategory;
@@ -307,8 +294,7 @@ namespace DynamicMaps.DynamicMarkers
                     return _showFriendlyPlayers;
                 case _enemyPlayerCategory:
                     return _showEnemyPlayers;
-                case _bossCategory:
-                    return _showBosses;
+                // NOTE: _bossCategory case removed
                 case _scavCategory:
                     return _showScavs;
                 default:

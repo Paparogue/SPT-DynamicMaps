@@ -105,6 +105,23 @@ namespace DynamicMaps.UI.Components
             return marker;
         }
 
+        /// <summary>
+        /// Adds a boss-area circle marker that is world-scale (scales with the map, not fixed screen size).
+        /// The marker position is grid-snapped so the boss's exact location stays hidden.
+        /// </summary>
+        public BossAreaMapMarker AddBossAreaMarker(IPlayer boss, string category, Color color, float areaRadius)
+        {
+            var name = $"{boss.Profile.GetCorrectedNickname()} (area)";
+            var marker = BossAreaMapMarker.Create(boss, MapMarkerContainer, color, name,
+                                                  areaRadius, -CoordinateRotation);
+            AddMapMarker(marker);
+
+            // world-scale markers should render behind normal markers
+            marker.transform.SetAsFirstSibling();
+
+            return marker;
+        }
+
         public IEnumerable<MapMarker> GetMapMarkersByCategory(string category)
         {
             return _markers.Where(m => m.Category == category);
@@ -333,11 +350,17 @@ namespace DynamicMaps.UI.Components
             // scale all map content up by scaling parent
             RectTransform.DOScale(ZoomCurrent * Vector3.one, updateMainZoom ? 0 : tweenTime);
 
-            // inverse scale all map markers and labels
-            // FIXME: does this generate large amounts of garbage?
+            // inverse scale all map markers and labels — EXCEPT world-scale markers
+            // which should keep their size in map-space (they represent real areas)
             var things = _markers.Cast<MonoBehaviour>().Concat(_labels);
             foreach (var thing in things)
             {
+                // skip world-scale markers: they stay in map coordinates
+                if (thing is MapMarker mapMarker && mapMarker.IsWorldScale)
+                {
+                    continue;
+                }
+
                 thing.GetRectTransform().DOScale(1 / ZoomCurrent * Vector3.one, tweenTime);
             }
         }

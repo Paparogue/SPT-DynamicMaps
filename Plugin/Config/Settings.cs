@@ -39,6 +39,7 @@ namespace DynamicMaps.Config
         public static ConfigEntry<bool> ShowEnemyPlayerMarkersInRaid;
         public static ConfigEntry<bool> ShowScavMarkersInRaid;
         public static ConfigEntry<bool> ShowBossMarkersInRaid;
+        public static ConfigEntry<float> BossAreaRadius;  // NEW: boss area circle radius
         public static ConfigEntry<bool> ShowLockedDoorStatus;
         public static ConfigEntry<bool> ShowQuestsInRaid;
         public static ConfigEntry<bool> ShowExtractsInRaid;
@@ -304,8 +305,19 @@ namespace DynamicMaps.Config
                 "Show Boss Markers",
                 false,
                 new ConfigDescription(
-                    "If enemy boss markers should be shown in-raid",
+                    "If enemy boss area markers should be shown in-raid",
                     null,
+                    new ConfigurationManagerAttributes { })));
+
+            // NEW: Boss area radius setting
+            ConfigEntries.Add(BossAreaRadius = config.Bind(
+                DynamicMarkerTitle,
+                "Boss Area Radius",
+                50f,
+                new ConfigDescription(
+                    "The radius (in game-units/meters) of the circle shown for a boss's approximate location. " +
+                    "The circle snaps to a grid of this size so the exact position is hidden.",
+                    new AcceptableValueRange<float>(10f, 200f),
                     new ConfigurationManagerAttributes { })));
 
             ConfigEntries.Add(ShowLockedDoorStatus = config.Bind(

@@ -879,10 +879,20 @@ namespace DynamicMaps.UI
                 provider.ShowExtractStatusInRaid = Settings.ShowExtractStatusInRaid.Value;
             }
 
-            // other player markers
+            // boss area markers (separate provider — shows approximate area, not exact position)
+            var needBossAreaMarkers = _serverConfig.allowShowBossMarkersInRaid
+                                   && Settings.ShowBossMarkersInRaid.Value;
+            AddRemoveMarkerProvider<BossAreaMarkerProvider>(needBossAreaMarkers);
+            if (needBossAreaMarkers)
+            {
+                var bossProvider = GetMarkerProvider<BossAreaMarkerProvider>();
+                bossProvider.UpdateAreaRadius();
+                bossProvider.RefreshMarkers();
+            }
+
+            // other player markers (friendly, enemy PMCs, scavs — bosses excluded, handled above)
             var needOtherPlayerMarkers = Settings.ShowFriendlyPlayerMarkersInRaid.Value
                                       || Settings.ShowEnemyPlayerMarkersInRaid.Value
-                                      || Settings.ShowBossMarkersInRaid.Value
                                       || Settings.ShowScavMarkersInRaid.Value;
 
             AddRemoveMarkerProvider<OtherPlayersMarkerProvider>(needOtherPlayerMarkers);
@@ -893,7 +903,6 @@ namespace DynamicMaps.UI
                 provider.ShowFriendlyPlayers = _serverConfig.allowShowFriendlyPlayerMarkersInRaid ? Settings.ShowFriendlyPlayerMarkersInRaid.Value : false;
                 provider.ShowEnemyPlayers = _serverConfig.allowShowEnemyPlayerMarkersInRaid ? Settings.ShowEnemyPlayerMarkersInRaid.Value : false;
                 provider.ShowScavs = _serverConfig.allowShowScavMarkersInRaid ? Settings.ShowScavMarkersInRaid.Value : false;
-                provider.ShowBosses = _serverConfig.allowShowBossMarkersInRaid ? Settings.ShowBossMarkersInRaid.Value : false;
                 
                 provider.RefreshMarkers();
             }
