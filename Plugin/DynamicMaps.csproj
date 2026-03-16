@@ -70,12 +70,12 @@
     <Reference Include="UnityEngine.UIModule">
       <HintPath>$(TarkovManagedDir)UnityEngine.UIModule.dll</HintPath>
     </Reference>
-      <Reference Include="Unity.VectorGraphics">
-          <HintPath>$(TarkovManagedDir)Unity.VectorGraphics.dll</HintPath>
-      </Reference>
-      <Reference Include="Unity.InternalAPIEngineBridge.003">
-          <HintPath>$(TarkovManagedDir)Unity.InternalAPIEngineBridge.003.dll</HintPath>
-      </Reference>
+    <Reference Include="Unity.VectorGraphics">
+      <HintPath>$(TarkovManagedDir)Unity.VectorGraphics.dll</HintPath>
+    </Reference>
+    <Reference Include="Unity.InternalAPIEngineBridge.003">
+      <HintPath>$(TarkovManagedDir)Unity.InternalAPIEngineBridge.003.dll</HintPath>
+    </Reference>
     <Reference Include="0Harmony">
       <HintPath>$(TarkovBepInExCoreDir)0Harmony.dll</HintPath>
     </Reference>
@@ -123,13 +123,17 @@
     </ItemGroup>
 
     <!-- Copies the output and resources to tarkov game folder -->
-      <Copy SourceFiles="@(OutputDLL);@(Resources);@(License)" DestinationFolder="$(TarkovDir)BepInEx\plugins\DynamicMaps\%(RecursiveDir)" />
-      <Copy SourceFiles="@(ServerComponents)" DestinationFolder="$(TarkovDir)SPT\user\mods\mpstark-dynamicmaps\%(RecursiveDir)" />
+    <Copy SourceFiles="@(OutputDLL);@(Resources);@(License)" DestinationFolder="$(TarkovDir)BepInEx\plugins\DynamicMaps\%(RecursiveDir)" />
+    <Copy SourceFiles="@(ServerComponents)" DestinationFolder="$(TarkovDir)SPT\user\mods\mpstark-dynamicmaps\%(RecursiveDir)" />
 
     <!-- Creates a release zip file -->
     <RemoveDir Directories="$(ProjectDir)release" />
-      <Copy SourceFiles="@(OutputDLL);@(Resources);@(License)" DestinationFolder="$(ProjectDir)release\DynamicMaps\BepInEx\plugins\DynamicMaps\%(RecursiveDir)" />
-      <Copy SourceFiles="@(ServerComponents)" DestinationFolder="$(ProjectDir)release\DynamicMaps\SPT\user\mods\mpstark-dynamicmaps\%(RecursiveDir)" />
+    <Copy SourceFiles="@(OutputDLL);@(Resources);@(License)" DestinationFolder="$(ProjectDir)release\DynamicMaps\BepInEx\plugins\DynamicMaps\%(RecursiveDir)" />
+    <Copy SourceFiles="@(ServerComponents)" DestinationFolder="$(ProjectDir)release\DynamicMaps\SPT\user\mods\mpstark-dynamicmaps\%(RecursiveDir)" />
+
+    <!-- Copy VectorGraphics DLLs into release so other users get them automatically -->
+    <Copy SourceFiles="$(TarkovManagedDir)Unity.VectorGraphics.dll;$(TarkovManagedDir)Unity.InternalAPIEngineBridge.003.dll" DestinationFolder="$(ProjectDir)release\DynamicMaps\EscapeFromTarkov_Data\Managed\" />
+
     <ZipDirectory SourceDirectory="$(ProjectDir)release\DynamicMaps\" DestinationFile="$(ProjectDir)release\DynamicMaps-$(Version).zip" />
   </Target>
 
